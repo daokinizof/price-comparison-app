@@ -99,72 +99,106 @@ with tab2:
     
     item_compare = st.text_input("שם המוצר:", placeholder="לדוגמה: אייפון 15 Pro", key="compare_item")
     
-    st.markdown("#### 💰 הזן מחירים:")
+    st.markdown("#### 💰 הזן מחירים והנחות:")
     
-    col1, col2, col3 = st.columns(3)
-    
+    # זאפ
+    st.markdown("##### 💡 זאפ")
+    col1, col2 = st.columns([2, 1])
     with col1:
-        zap_price = st.number_input("💡 מחיר בזאפ", min_value=0, value=0, step=10, help="המחיר הזול ביותר שמצאת בזאפ")
-    
+        zap_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="zap_price", help="המחיר הזול ביותר שמצאת בזאפ")
     with col2:
-        ksp_price = st.number_input("🏪 מחיר ב-KSP", min_value=0, value=0, step=10)
+        zap_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="zap_discount")
     
-    with col3:
-        yad2_price = st.number_input("🤝 מחיר ביד2", min_value=0, value=0, step=10)
+    st.markdown("---")
     
+    # KSP
+    st.markdown("##### 🏪 KSP")
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        ksp_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="ksp_price")
+    with col2:
+        ksp_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="ksp_discount")
+    
+    st.markdown("---")
+    
+    # יד2
+    st.markdown("##### 🤝 יד שנייה")
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        yad2_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="yad2_price")
+    with col2:
+        yad2_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="yad2_discount")
+    
+    st.markdown("---")
+    
+    # חנות נוספת
     with st.expander("➕ הוסף חנות נוספת"):
         other_store = st.text_input("שם החנות", placeholder="לדוגמה: iDigital")
-        other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other")
-    
-    st.markdown("#### 🎁 יש לך קופון או הנחה?")
-    discount_type = st.radio("", ["אין הנחה", "אחוז הנחה", "סכום קבוע"], horizontal=True)
-    
-    discount_value = 0
-    if discount_type == "אחוז הנחה":
-        discount_value = st.slider("כמה אחוז?", 0, 50, 10, 5)
-    elif discount_type == "סכום קבוע":
-        discount_value = st.number_input("כמה שקלים הנחה?", min_value=0, value=0, step=10)
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other_price")
+        with col2:
+            other_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="other_discount")
     
     if st.button("🔍 השווה וראה את התוצאה!"):
         if item_compare:
             prices_data = []
             
             if zap_price > 0:
-                prices_data.append({"store": "💡 זאפ", "price": zap_price})
+                final_zap = zap_price * (1 - zap_discount / 100)
+                prices_data.append({
+                    "store": "💡 זאפ",
+                    "price": zap_price,
+                    "discount": zap_discount,
+                    "final_price": final_zap
+                })
             
             if ksp_price > 0:
-                prices_data.append({"store": "🏪 KSP", "price": ksp_price})
+                final_ksp = ksp_price * (1 - ksp_discount / 100)
+                prices_data.append({
+                    "store": "🏪 KSP",
+                    "price": ksp_price,
+                    "discount": ksp_discount,
+                    "final_price": final_ksp
+                })
             
             if yad2_price > 0:
-                prices_data.append({"store": "🤝 יד שנייה", "price": yad2_price})
+                final_yad2 = yad2_price * (1 - yad2_discount / 100)
+                prices_data.append({
+                    "store": "🤝 יד שנייה",
+                    "price": yad2_price,
+                    "discount": yad2_discount,
+                    "final_price": final_yad2
+                })
             
             if other_price > 0 and other_store:
-                prices_data.append({"store": f"⭐ {other_store}", "price": other_price})
+                final_other = other_price * (1 - other_discount / 100)
+                prices_data.append({
+                    "store": f"⭐ {other_store}",
+                    "price": other_price,
+                    "discount": other_discount,
+                    "final_price": final_other
+                })
             
             if len(prices_data) > 0:
-                prices_data.sort(key=lambda x: x['price'])
-                
-                for item_data in prices_data:
-                    if discount_type == "אחוז הנחה":
-                        item_data['final_price'] = item_data['price'] * (1 - discount_value / 100)
-                    elif discount_type == "סכום קבוע":
-                        item_data['final_price'] = max(0, item_data['price'] - discount_value)
-                    else:
-                        item_data['final_price'] = item_data['price']
+                prices_data.sort(key=lambda x: x['final_price'])
                 
                 df_data = {
                     "חנות": [d['store'] for d in prices_data],
-                    "מחיר": [f"₪{d['price']:,}" for d in prices_data],
+                    "מחיר מקורי": [f"₪{d['price']:,}" for d in prices_data],
+                    "הנחה": [f"{d['discount']}%" if d['discount'] > 0 else "-" for d in prices_data],
+                    "מחיר סופי": [f"₪{d['final_price']:,.0f}" for d in prices_data]
                 }
-                
-                if discount_type != "אין הנחה":
-                    df_data["אחרי הנחה"] = [f"₪{d['final_price']:,.0f}" for d in prices_data]
                 
                 df = pd.DataFrame(df_data)
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 
                 best_deal = min(prices_data, key=lambda x: x['final_price'])
                 st.success(f"### 🏆 **ההצעה הטובה ביותר:** {best_deal['store']} - ₪{best_deal['final_price']:,.0f}")
+                
+                if best_deal['discount'] > 0:
+                    savings = best_deal['price'] - best_deal['final_price']
+                    st.info(f"💰 **חיסכון בחנות זו:** ₪{savings:,.0f} (הנחה של {best_deal['discount']}%)")
                 
                 if len(prices_data) > 1:
                     worst_deal = max(prices_data, key=lambda x: x['final_price'])
@@ -179,14 +213,11 @@ with tab2:
                         st.metric("💸 היקר ביותר", f"₪{worst_deal['final_price']:,.0f}")
                     
                     with col3:
-                        st.metric("📊 חיסכון מקסימלי", f"₪{total_savings:,.0f}")
+                        st.metric("📊 הפרש", f"₪{total_savings:,.0f}")
                 
-                if discount_type != "אין הנחה":
-                    if discount_type == "אחוז הנחה":
-                        actual_discount = best_deal['price'] - best_deal['final_price']
-                        st.info(f"💡 **עם ההנחה שלך ({discount_value}%)** אתה חוסך ₪{actual_discount:,.0f} נוספים!")
-                    else:
-                        st.info(f"💡 **עם ההנחה שלך** אתה חוסך ₪{discount_value:,} נוספים!")
+                total_discount_saved = sum([d['price'] - d['final_price'] for d in prices_data if d['discount'] > 0])
+                if total_discount_saved > 0:
+                    st.success(f"🎁 **סה״כ חיסכון מהנחות:** ₪{total_discount_saved:,.0f}")
                 
             else:
                 st.warning("⚠️ נא להזין לפחות מחיר אחד")
@@ -194,4 +225,4 @@ with tab2:
             st.warning("⚠️ נא להזין שם מוצר")
 
 st.markdown("---")
-st.caption("🔍2026 ©  אפליקציית חיפוש והשוואת מחירים | נוצר ע״י מאור איתן ")
+st.caption("2026 © אפליקציית חיפוש והשוואת מחירים | נוצר ע״י מאור איתן")
