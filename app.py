@@ -37,10 +37,8 @@ st.markdown("""
 st.title("🔍 חיפוש והשוואת מחירים")
 st.caption("מצא את המחיר הטוב ביותר בקלות!")
 
-# טאבים
 tab1, tab2 = st.tabs(["🔗 חיפוש מהיר", "📊 השוואת מחירים"])
 
-# ========== טאב 1: חיפוש מהיר ==========
 with tab1:
     st.markdown("### 🔍 חפש מוצר בחנויות")
     st.info("💡 **טיפ:** לחץ על החנות, מצא את המחיר, וחזור להשוואה בטאב 'השוואת מחירים'")
@@ -54,7 +52,6 @@ with tab1:
         
         st.markdown("### 🏪 לחץ על חנות לחיפוש:")
         
-        # זאפ
         zap_url = f"https://www.zap.co.il/search.aspx?keyword={item_encoded}"
         st.markdown(f"""
         <div class="store-link">
@@ -70,7 +67,6 @@ with tab1:
         
         col1, col2 = st.columns(2)
         
-        # KSP
         with col1:
             ksp_url = f"https://ksp.co.il/web/search?q={item_encoded}"
             st.markdown(f"""
@@ -84,7 +80,6 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
         
-        # יד2
         with col2:
             yad2_url = f"https://www.yad2.co.il/products/search?query={item_encoded}"
             st.markdown(f"""
@@ -98,7 +93,6 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
 
-# ========== טאב 2: השוואת מחירים ==========
 with tab2:
     st.markdown("### 📊 השווה את המחירים שמצאת")
     st.info("💡 הזן את המחירים שמצאת בחנויות השונות ונראה איפה הכי כדאי!")
@@ -118,12 +112,10 @@ with tab2:
     with col3:
         yad2_price = st.number_input("🤝 מחיר ביד2", min_value=0, value=0, step=10)
     
-    # חנות נוספת
     with st.expander("➕ הוסף חנות נוספת"):
         other_store = st.text_input("שם החנות", placeholder="לדוגמה: iDigital")
         other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other")
     
-    # הנחה נוספת
     st.markdown("#### 🎁 יש לך קופון או הנחה?")
     discount_type = st.radio("", ["אין הנחה", "אחוז הנחה", "סכום קבוע"], horizontal=True)
     
@@ -135,7 +127,6 @@ with tab2:
     
     if st.button("🔍 השווה וראה את התוצאה!"):
         if item_compare:
-            # איסוף המחירים
             prices_data = []
             
             if zap_price > 0:
@@ -151,10 +142,8 @@ with tab2:
                 prices_data.append({"store": f"⭐ {other_store}", "price": other_price})
             
             if len(prices_data) > 0:
-                # מיון לפי מחיר
                 prices_data.sort(key=lambda x: x['price'])
                 
-                # חישוב מחיר אחרי הנחה
                 for item_data in prices_data:
                     if discount_type == "אחוז הנחה":
                         item_data['final_price'] = item_data['price'] * (1 - discount_value / 100)
@@ -163,7 +152,6 @@ with tab2:
                     else:
                         item_data['final_price'] = item_data['price']
                 
-                # יצירת טבלה
                 df_data = {
                     "חנות": [d['store'] for d in prices_data],
                     "מחיר": [f"₪{d['price']:,}" for d in prices_data],
@@ -175,11 +163,9 @@ with tab2:
                 df = pd.DataFrame(df_data)
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 
-                # הצעה הטובה ביותר
                 best_deal = min(prices_data, key=lambda x: x['final_price'])
                 st.success(f"### 🏆 **ההצעה הטובה ביותר:** {best_deal['store']} - ₪{best_deal['final_price']:,.0f}")
                 
-                # סטטיסטיקות
                 if len(prices_data) > 1:
                     worst_deal = max(prices_data, key=lambda x: x['final_price'])
                     total_savings = worst_deal['final_price'] - best_deal['final_price']
@@ -195,7 +181,6 @@ with tab2:
                     with col3:
                         st.metric("📊 חיסכון מקסימלי", f"₪{total_savings:,.0f}")
                 
-                # טיפ
                 if discount_type != "אין הנחה":
                     if discount_type == "אחוז הנחה":
                         actual_discount = best_deal['price'] - best_deal['final_price']
@@ -210,32 +195,3 @@ with tab2:
 
 st.markdown("---")
 st.caption("🔍 אפליקציית חיפוש והשוואת מחירים | נוצר ע״י נחמיה © 2025")
-```
-
----
-
-## 💾 **עדכן גם את requirements.txt:**
-```
-https://github.com/daokinizof/price-comparison-app/edit/main/requirements.txt
-```
-
-**החלף ב:**
-```
-streamlit
-pandas
-```
-
-(מוחקים את requests ו-beautifulsoup4 - לא צריך אותם יותר!)
-
----
-
-## ✅ **שמור את שני הקבצים:**
-
-✅ **Commit changes...**
-✅ **Commit changes**
-
----
-
-## ⏳ **המתן דקה ורענן:**
-```
-https://price-comparison-app-5ypcd5ufxitakndbt42jx3.streamlit.app/
