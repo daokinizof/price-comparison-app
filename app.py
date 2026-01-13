@@ -197,6 +197,10 @@ STORES = {
     'iDigital': 'https://www.idigital.co.il/search?q=',
     'Bug': 'https://www.bug.co.il/search?q=',
     'Ivory': 'https://www.ivory.co.il/catalog.php?act=cat&keyword=',
+    'Plonter': 'https://plonter.co.il/search?q=',
+    'Gandor': 'https://www.gandor.co.il/search?q=',
+    'Terminal X': 'https://www.terminalx.com/search?q=',
+    'Castro': 'https://www.castro.com/search?q=',
 }
 
 with tab1:
@@ -237,54 +241,38 @@ with tab2:
     
     notes = st.text_area("📝 הערות על המוצר", placeholder="למשל: צבע, נפח אחסון, וכו'")
     
-  st.markdown("#### 💰 הזן מחירים והנחות:")
-
-num_stores_to_show = st.slider("🏪 כמה חנויות להשוות?", min_value=3, max_value=10, value=6, step=1)
-
-prices_data = []
-
-ALL_STORES = ['זאפ', 'KSP', 'iDigital', 'Bug', 'יד2', 'Ivory', 'Plonter', 'Gandor', 'Terminal X', 'Castro']
-
-for idx, store_name in enumerate(ALL_STORES[:num_stores_to_show]):
-    with st.expander(f"🏪 {store_name}"):
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            price = st.number_input(f"מחיר", min_value=0, value=0, step=10, key=f"{store_name}_price_{idx}")
-        with col2:
-            discount = st.number_input(f"הנחה %", min_value=0, max_value=100, value=0, step=5, key=f"{store_name}_discount_{idx}")
-        
-        if price > 0:
-            final_price = price * (1 - discount / 100)
-            prices_data.append({
-                "store": f"🏪 {store_name}",
-                "price": price,
-                "discount": discount,
-                "final_price": final_price
-            })
-
-with st.expander("➕ חנות נוספת (מותאמת אישית)"):
-    other_store = st.text_input("שם החנות")
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other_price_custom")
-    with col2:
-        other_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="other_discount_custom")
+    st.markdown("#### 💰 הזן מחירים והנחות:")
     
-    if other_price > 0 and other_store:
-        final_other = other_price * (1 - other_discount / 100)
-        prices_data.append({
-            "store": f"⭐ {other_store}",
-            "price": other_price,
-            "discount": other_discount,
-            "final_price": final_other
-        })
-    with st.expander("➕ חנות נוספת"):
+    num_stores_to_show = st.slider("🏪 כמה חנויות להשוות?", min_value=3, max_value=10, value=6, step=1)
+    
+    prices_data = []
+    
+    ALL_STORES = ['זאפ', 'KSP', 'iDigital', 'Bug', 'יד2', 'Ivory', 'Plonter', 'Gandor', 'Terminal X', 'Castro']
+    
+    for idx, store_name in enumerate(ALL_STORES[:num_stores_to_show]):
+        with st.expander(f"🏪 {store_name}"):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                price = st.number_input(f"מחיר", min_value=0, value=0, step=10, key=f"{store_name}_price_{idx}")
+            with col2:
+                discount = st.number_input(f"הנחה %", min_value=0, max_value=100, value=0, step=5, key=f"{store_name}_discount_{idx}")
+            
+            if price > 0:
+                final_price = price * (1 - discount / 100)
+                prices_data.append({
+                    "store": f"🏪 {store_name}",
+                    "price": price,
+                    "discount": discount,
+                    "final_price": final_price
+                })
+    
+    with st.expander("➕ חנות נוספת (מותאמת אישית)"):
         other_store = st.text_input("שם החנות")
         col1, col2 = st.columns([2, 1])
         with col1:
-            other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other_price2")
+            other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other_price_custom")
         with col2:
-            other_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="other_discount2")
+            other_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="other_discount_custom")
         
         if other_price > 0 and other_store:
             final_other = other_price * (1 - other_discount / 100)
