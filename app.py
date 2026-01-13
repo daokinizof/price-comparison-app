@@ -2,16 +2,15 @@ import streamlit as st
 import pandas as pd
 import re
 import urllib.parse
-import requests
-from bs4 import BeautifulSoup
 
-st.set_page_config(page_title="חיפוש מוצרים", layout="centered")
+st.set_page_config(page_title="חיפוש והשוואת מחירים", layout="centered", page_icon="🔍")
 
 st.markdown("""
 <style>
     h1 {
         text-align: center;
         color: #1f77b4;
+        margin-bottom: 0;
     }
     .stButton button {
         width: 100%;
@@ -20,141 +19,223 @@ st.markdown("""
         font-size: 18px;
         padding: 15px;
         border-radius: 10px;
+        font-weight: bold;
+    }
+    .stButton button:hover {
+        background-color: #1557a0;
+    }
+    .store-link {
+        text-align: center;
+        padding: 20px;
+        border-radius: 10px;
+        background-color: #f0f2f6;
+        margin: 10px 0;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🔍 אפליקציית חיפוש והשוואת מחירים")
+st.title("🔍 חיפוש והשוואת מחירים")
+st.caption("מצא את המחיר הטוב ביותר בקלות!")
 
-item = st.text_input("מה המוצר שאתה מחפש?")
-price_input = st.text_input("מה המחיר המקורי? (אופציונלי)", value="0")
-company = st.text_input("חברה מועדפת והנחה (למשל: KSP 15%)")
-notes = st.text_area("הערות (מדינה, יד שניה וכו')")
+# טאבים
+tab1, tab2 = st.tabs(["🔗 חיפוש מהיר", "📊 השוואת מחירים"])
 
-if st.button("בצע חיפוש"):
-    if not item.strip():
-        st.warning("נא להזין שם מוצר")
-    else:
-        try:
-            price = float(price_input.replace(',', ''))
-        except ValueError:
-            price = 0
-        
-        final_price = price
-        company_name = "חנות מועדפת"
-        discount_percent = 0
-        
-        if company:
-            match = re.search(r'(\d+)%', company)
-            if match:
-                discount_percent = int(match.group(1))
-                final_price = price * (1 - discount_percent / 100)
-            company_name = re.sub(r'\s*\d+%.*', '', company).strip() or company.split()[0]
-        
-        st.subheader(f"תוצאות עבור: {item}")
-        
-        # חיפוש אמיתי בזאפ
-        with st.spinner('מחפש בזאפ...'):
-            try:
-                item_encoded = urllib.parse.quote(item)
-                zap_url = f"https://www.zap.co.il/search.aspx?keyword={item_encoded}"
-                
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-                
-                response = requests.get(zap_url, headers=headers, timeout=5)
-                
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, 'html.parser')
-                    
-                    # מחפש מחירים בזאפ
-                    price_elements = soup.find_all(class_=re.compile('price|Price'))
-                    
-                    if price_elements and len(price_elements) > 0:
-                        # מצא מחיר!
-                        zap_price_text = price_elements[0].get_text()
-                        zap_price_match = re.search(r'([\d,]+)', zap_price_text)
-                        
-                        if zap_price_match:
-                            zap_price = float(zap_price_match.group(1).replace(',', ''))
-                            st.success(f"✅ נמצא בזאפ! מחיר: ₪{zap_price:,.0f}")
-                            
-                            if price > 0:
-                                data = {
-                                    "מקור": ["המחיר שהזנת", "זאפ (מחיר אמיתי)", f"{company_name}"],
-                                    "מחיר": [
-                                        f"₪{price:,.0f}",
-                                        f"₪{zap_price:,.0f}",
-                                        f"₪{final_price:,.0f}" + (f" (הנחה {discount_percent}%)" if discount_percent > 0 else "")
-                                    ],
-                                    "סטטוס": ["התחלתי מכאן", "✅ מחיר אמיתי", "מומלץ"]
-                                }
-                            else:
-                                data = {
-                                    "מקור": ["זאפ (מחיר אמיתי)", f"{company_name}"],
-                                    "מחיר": [
-                                        f"₪{zap_price:,.0f}",
-                                        f"₪{zap_price * 0.9:,.0f}" + (f" (הנחה {discount_percent}%)" if discount_percent > 0 else " (הערכה)")
-                                    ],
-                                    "סטטוס": ["✅ מחיר אמיתי", "הערכה"]
-                                }
-                        else:
-                            raise Exception("לא נמצא מחיר")
-                    else:
-                        raise Exception("לא נמצאו תוצאות")
-                else:
-                    raise Exception(f"שגיאה: {response.status_code}")
-                    
-            except Exception as e:
-                st.warning(f"⚠️ לא הצלחתי לחפש בזאפ ({str(e)}) - מציג מחירים משוערים")
-                
-                # אם החיפוש נכשל - מחירים משוערים
-                if price > 0:
-                    data = {
-                        "מקור": ["המחיר שהזנת", "אמזון (הערכה)", f"{company_name}"],
-                        "מחיר": [
-                            f"₪{price:,.0f}",
-                            f"₪{price * 0.95:,.0f}",
-                            f"₪{final_price:,.0f}" + (f" (הנחה {discount_percent}%)" if discount_percent > 0 else "")
-                        ],
-                        "סטטוס": ["התחלתי מכאן", "הערכה", "מומלץ"]
-                    }
-                else:
-                    st.error("נא להזין מחיר כדי לראות השוואה")
-                    st.stop()
-        
-        df = pd.DataFrame(data)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        
-        # חיסכון
-        if final_price < price and price > 0:
-            savings = price - final_price
-            st.success(f"💰 חיסכון אפשרי: ₪{savings:,.0f}")
-        
-        # הערות
-        if notes.strip():
-            st.info(f"📝 הערה: {notes}")
-        
-        # קישורים
-        st.markdown("---")
-        st.subheader("🔗 חפש באתרים:")
-        
-        col1, col2, col3 = st.columns(3)
-        
+# ========== טאב 1: חיפוש מהיר ==========
+with tab1:
+    st.markdown("### 🔍 חפש מוצר בחנויות")
+    st.info("💡 **טיפ:** לחץ על החנות, מצא את המחיר, וחזור להשוואה בטאב 'השוואת מחירים'")
+    
+    item = st.text_input("מה אתה מחפש?", placeholder="לדוגמה: אייפון 15 Pro", key="search_item")
+    
+    if item:
         item_encoded = urllib.parse.quote(item)
         
+        st.success(f"✅ מחפש: **{item}**")
+        
+        st.markdown("### 🏪 לחץ על חנות לחיפוש:")
+        
+        # זאפ
+        zap_url = f"https://www.zap.co.il/search.aspx?keyword={item_encoded}"
+        st.markdown(f"""
+        <div class="store-link">
+            <h3>💡 זאפ</h3>
+            <p>השוואת מחירים מכל החנויות בישראל</p>
+            <a href="{zap_url}" target="_blank">
+                <button style="padding: 10px 30px; font-size: 16px; background-color: #FF6B35; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    🔍 חפש בזאפ
+                </button>
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        # KSP
         with col1:
-            zap_url = f"https://www.zap.co.il/search.aspx?keyword={item_encoded}"
-            st.markdown(f"[💡 זאפ]({zap_url})")
+            ksp_url = f"https://ksp.co.il/web/search?q={item_encoded}"
+            st.markdown(f"""
+            <div class="store-link">
+                <h4>🏪 KSP</h4>
+                <a href="{ksp_url}" target="_blank">
+                    <button style="padding: 8px 20px; font-size: 14px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        חפש ב-KSP
+                    </button>
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
         
+        # יד2
         with col2:
-            ksp_url = f"https://ksp.co.il/web/cat/573..2008?q={item_encoded}"
-            st.markdown(f"[🏪 KSP]({ksp_url})")
-        
-        with col3:
             yad2_url = f"https://www.yad2.co.il/products/search?query={item_encoded}"
-            st.markdown(f"[🤝 יד2]({yad2_url})")
+            st.markdown(f"""
+            <div class="store-link">
+                <h4>🤝 יד שנייה</h4>
+                <a href="{yad2_url}" target="_blank">
+                    <button style="padding: 8px 20px; font-size: 14px; background-color: #FF9800; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        חפש ביד2
+                    </button>
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+
+# ========== טאב 2: השוואת מחירים ==========
+with tab2:
+    st.markdown("### 📊 השווה את המחירים שמצאת")
+    st.info("💡 הזן את המחירים שמצאת בחנויות השונות ונראה איפה הכי כדאי!")
+    
+    item_compare = st.text_input("שם המוצר:", placeholder="לדוגמה: אייפון 15 Pro", key="compare_item")
+    
+    st.markdown("#### 💰 הזן מחירים:")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        zap_price = st.number_input("💡 מחיר בזאפ", min_value=0, value=0, step=10, help="המחיר הזול ביותר שמצאת בזאפ")
+    
+    with col2:
+        ksp_price = st.number_input("🏪 מחיר ב-KSP", min_value=0, value=0, step=10)
+    
+    with col3:
+        yad2_price = st.number_input("🤝 מחיר ביד2", min_value=0, value=0, step=10)
+    
+    # חנות נוספת
+    with st.expander("➕ הוסף חנות נוספת"):
+        other_store = st.text_input("שם החנות", placeholder="לדוגמה: iDigital")
+        other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other")
+    
+    # הנחה נוספת
+    st.markdown("#### 🎁 יש לך קופון או הנחה?")
+    discount_type = st.radio("", ["אין הנחה", "אחוז הנחה", "סכום קבוע"], horizontal=True)
+    
+    discount_value = 0
+    if discount_type == "אחוז הנחה":
+        discount_value = st.slider("כמה אחוז?", 0, 50, 10, 5)
+    elif discount_type == "סכום קבוע":
+        discount_value = st.number_input("כמה שקלים הנחה?", min_value=0, value=0, step=10)
+    
+    if st.button("🔍 השווה וראה את התוצאה!"):
+        if item_compare:
+            # איסוף המחירים
+            prices_data = []
+            
+            if zap_price > 0:
+                prices_data.append({"store": "💡 זאפ", "price": zap_price})
+            
+            if ksp_price > 0:
+                prices_data.append({"store": "🏪 KSP", "price": ksp_price})
+            
+            if yad2_price > 0:
+                prices_data.append({"store": "🤝 יד שנייה", "price": yad2_price})
+            
+            if other_price > 0 and other_store:
+                prices_data.append({"store": f"⭐ {other_store}", "price": other_price})
+            
+            if len(prices_data) > 0:
+                # מיון לפי מחיר
+                prices_data.sort(key=lambda x: x['price'])
+                
+                # חישוב מחיר אחרי הנחה
+                for item_data in prices_data:
+                    if discount_type == "אחוז הנחה":
+                        item_data['final_price'] = item_data['price'] * (1 - discount_value / 100)
+                    elif discount_type == "סכום קבוע":
+                        item_data['final_price'] = max(0, item_data['price'] - discount_value)
+                    else:
+                        item_data['final_price'] = item_data['price']
+                
+                # יצירת טבלה
+                df_data = {
+                    "חנות": [d['store'] for d in prices_data],
+                    "מחיר": [f"₪{d['price']:,}" for d in prices_data],
+                }
+                
+                if discount_type != "אין הנחה":
+                    df_data["אחרי הנחה"] = [f"₪{d['final_price']:,.0f}" for d in prices_data]
+                
+                df = pd.DataFrame(df_data)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                
+                # הצעה הטובה ביותר
+                best_deal = min(prices_data, key=lambda x: x['final_price'])
+                st.success(f"### 🏆 **ההצעה הטובה ביותר:** {best_deal['store']} - ₪{best_deal['final_price']:,.0f}")
+                
+                # סטטיסטיקות
+                if len(prices_data) > 1:
+                    worst_deal = max(prices_data, key=lambda x: x['final_price'])
+                    total_savings = worst_deal['final_price'] - best_deal['final_price']
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("💰 הזול ביותר", f"₪{best_deal['final_price']:,.0f}")
+                    
+                    with col2:
+                        st.metric("💸 היקר ביותר", f"₪{worst_deal['final_price']:,.0f}")
+                    
+                    with col3:
+                        st.metric("📊 חיסכון מקסימלי", f"₪{total_savings:,.0f}")
+                
+                # טיפ
+                if discount_type != "אין הנחה":
+                    if discount_type == "אחוז הנחה":
+                        actual_discount = best_deal['price'] - best_deal['final_price']
+                        st.info(f"💡 **עם ההנחה שלך ({discount_value}%)** אתה חוסך ₪{actual_discount:,.0f} נוספים!")
+                    else:
+                        st.info(f"💡 **עם ההנחה שלך** אתה חוסך ₪{discount_value:,} נוספים!")
+                
+            else:
+                st.warning("⚠️ נא להזין לפחות מחיר אחד")
+        else:
+            st.warning("⚠️ נא להזין שם מוצר")
 
 st.markdown("---")
-st.caption("אפליקציה לחיפוש והשוואת מחירים | נוצר ע\"י נחמיה")
+st.caption("🔍 אפליקציית חיפוש והשוואת מחירים | נוצר ע״י נחמיה © 2025")
+```
+
+---
+
+## 💾 **עדכן גם את requirements.txt:**
+```
+https://github.com/daokinizof/price-comparison-app/edit/main/requirements.txt
+```
+
+**החלף ב:**
+```
+streamlit
+pandas
+```
+
+(מוחקים את requests ו-beautifulsoup4 - לא צריך אותם יותר!)
+
+---
+
+## ✅ **שמור את שני הקבצים:**
+
+✅ **Commit changes...**
+✅ **Commit changes**
+
+---
+
+## ⏳ **המתן דקה ורענן:**
+```
+https://price-comparison-app-5ypcd5ufxitakndbt42jx3.streamlit.app/
