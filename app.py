@@ -11,13 +11,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# אתחול session state
 if 'search_history' not in st.session_state:
     st.session_state.search_history = []
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = False
 
-# פונקציה להוספה להיסטוריה
 def add_to_history(item_name, stores_data):
     if item_name:
         history_item = {
@@ -25,11 +23,9 @@ def add_to_history(item_name, stores_data):
             'stores': stores_data,
             'timestamp': pd.Timestamp.now().strftime('%d/%m/%Y %H:%M')
         }
-        # הוסף בהתחלה והגבל ל-10 אחרונים
         st.session_state.search_history.insert(0, history_item)
         st.session_state.search_history = st.session_state.search_history[:10]
 
-# CSS דינמי לפי מצב
 if st.session_state.dark_mode:
     bg_color = "#1a1a1a"
     text_color = "#ffffff"
@@ -85,11 +81,9 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
 with st.sidebar:
     st.title("⚙️ הגדרות")
     
-    # מצב לילה
     dark_mode_toggle = st.toggle("🌙 מצב לילה", value=st.session_state.dark_mode)
     if dark_mode_toggle != st.session_state.dark_mode:
         st.session_state.dark_mode = dark_mode_toggle
@@ -97,7 +91,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # היסטוריית חיפושים
     st.subheader("📜 חיפושים אחרונים")
     
     if len(st.session_state.search_history) > 0:
@@ -121,14 +114,11 @@ with st.sidebar:
     st.markdown("---")
     st.caption("נוצר ע״י נחמיה © 2025")
 
-# כותרת ראשית
 st.title("🔍 חיפוש והשוואת מחירים")
 st.caption("מצא את המחיר הטוב ביותר בקלות!")
 
-# טאבים
 tab1, tab2, tab3 = st.tabs(["🔗 חיפוש מהיר", "📊 השוואת מחירים", "💳 מחשבון תשלומים"])
 
-# ========== טאב 1: חיפוש מהיר ==========
 with tab1:
     st.markdown("### 🔍 חפש מוצר בחנויות")
     st.info("💡 **טיפ:** לחץ על החנות, מצא את המחיר, וחזור להשוואה בטאב 'השוואת מחירים'")
@@ -142,7 +132,6 @@ with tab1:
         
         st.markdown("### 🏪 לחץ על חנות לחיפוש:")
         
-        # זאפ
         zap_url = f"https://www.zap.co.il/search.aspx?keyword={item_encoded}"
         st.markdown(f"""
         <div class="store-link">
@@ -184,7 +173,6 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
 
-# ========== טאב 2: השוואת מחירים ==========
 with tab2:
     st.markdown("### 📊 השווה את המחירים שמצאת")
     st.info("💡 הזן את המחירים שמצאת בחנויות השונות ונראה איפה הכי כדאי!")
@@ -193,7 +181,6 @@ with tab2:
     
     st.markdown("#### 💰 הזן מחירים והנחות:")
     
-    # זאפ
     st.markdown("##### 💡 זאפ")
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -203,7 +190,6 @@ with tab2:
     
     st.markdown("---")
     
-    # KSP
     st.markdown("##### 🏪 KSP")
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -213,7 +199,6 @@ with tab2:
     
     st.markdown("---")
     
-    # יד2
     st.markdown("##### 🤝 יד שנייה")
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -223,7 +208,6 @@ with tab2:
     
     st.markdown("---")
     
-    # חנות נוספת
     with st.expander("➕ הוסף חנות נוספת"):
         other_store = st.text_input("שם החנות", placeholder="לדוגמה: iDigital")
         col1, col2 = st.columns([2, 1])
@@ -273,12 +257,10 @@ with tab2:
                 })
             
             if len(prices_data) > 0:
-                # הוסף להיסטוריה
                 add_to_history(item_compare, prices_data)
                 
                 prices_data.sort(key=lambda x: x['final_price'])
                 
-                # טבלה
                 df_data = {
                     "חנות": [d['store'] for d in prices_data],
                     "מחיר מקורי": [f"₪{d['price']:,}" for d in prices_data],
@@ -289,12 +271,10 @@ with tab2:
                 df = pd.DataFrame(df_data)
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 
-                # גרף
                 st.markdown("### 📊 השוואה ויזואלית")
                 
                 fig = go.Figure()
                 
-                # עמודות למחיר מקורי
                 fig.add_trace(go.Bar(
                     name='מחיר מקורי',
                     x=[d['store'] for d in prices_data],
@@ -302,7 +282,6 @@ with tab2:
                     marker_color='lightblue'
                 ))
                 
-                # עמודות למחיר סופי
                 fig.add_trace(go.Bar(
                     name='מחיר סופי',
                     x=[d['store'] for d in prices_data],
@@ -320,7 +299,6 @@ with tab2:
                 
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # תוצאות
                 best_deal = min(prices_data, key=lambda x: x['final_price'])
                 st.success(f"### 🏆 **ההצעה הטובה ביותר:** {best_deal['store']} - ₪{best_deal['final_price']:,.0f}")
                 
@@ -343,7 +321,6 @@ with tab2:
                     with col3:
                         st.metric("📊 הפרש", f"₪{total_savings:,.0f}")
                 
-                # כפתור שיתוף WhatsApp
                 st.markdown("### 💬 שתף את ההשוואה")
                 
                 whatsapp_text = f"🔍 השוואת מחירים: {item_compare}%0A%0A"
@@ -366,7 +343,6 @@ with tab2:
         else:
             st.warning("⚠️ נא להזין שם מוצר")
 
-# ========== טאב 3: מחשבון תשלומים ==========
 with tab3:
     st.markdown("### 💳 מחשבון תשלומים")
     st.info("💡 חשב כמה תשלם בתשלומים עם/בלי ריבית")
@@ -384,12 +360,10 @@ with tab3:
     if st.button("🧮 חשב תשלומים"):
         if calc_price > 0:
             if interest_rate == 0:
-                # ללא ריבית
                 monthly_payment = calc_price / num_payments
                 total_payment = calc_price
                 total_interest = 0
             else:
-                # עם ריבית
                 monthly_rate = interest_rate / 100
                 monthly_payment = calc_price * (monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
                 total_payment = monthly_payment * num_payments
@@ -408,7 +382,6 @@ with tab3:
             with col3:
                 st.metric("📊 עלות ריבית", f"₪{total_interest:,.0f}")
             
-            # גרף תשלומים
             st.markdown("### 📊 פירוט תשלומים")
             
             payments_data = []
@@ -447,31 +420,3 @@ with tab3:
 
 st.markdown("---")
 st.caption("🔍 אפליקציית חיפוש והשוואת מחירים | נוצר ע״י נחמיה © 2025")
-```
-
----
-
-## 📝 **עכשיו עדכן את requirements.txt:**
-```
-https://github.com/daokinizof/price-comparison-app/edit/main/requirements.txt
-```
-
-**החלף ב:**
-```
-streamlit
-pandas
-plotly
-```
-
----
-
-## 💾 **שמור את שניהם:**
-
-✅ **Commit changes...**
-✅ **Commit changes**
-
----
-
-## ⏳ **המתן 2-3 דקות ורענן:**
-```
-https://price-comparison-app-5ypcd5ufxitakndbt42jx3.streamlit.app/
