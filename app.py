@@ -1,512 +1,554 @@
 import streamlit as st
 import pandas as pd
-import re
-import urllib.parse
-import plotly.graph_objects as go
-import plotly.express as px
 from datetime import datetime
-import io
+import json
 
+# =====================================
+# הגדרות עמוד
+# =====================================
 st.set_page_config(
-    page_title="חיפוש והשוואת מחירים", 
-    layout="wide", 
+    page_title="חיפוש והשוואת מחירים | Price Comparison",
     page_icon="🔍",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
+# =====================================
+# פונקציות עזר
+# =====================================
+
+def load_legal_document(filename):
+    """טוען מסמך משפטי מקובץ markdown"""
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return f"⚠️ המסמך {filename} לא נמצא. אנא וודא שהקובץ קיים בתיקייה."
+    except Exception as e:
+        return f"⚠️ שגיאה בטעינת המסמך: {str(e)}"
+
+def show_legal_page(doc_type):
+    """מציג דף משפטי לפי סוג"""
+    docs = {
+        "terms": ("terms_of_service.md", "📋 תנאי שימוש / Terms of Service"),
+        "privacy": ("privacy_policy.md", "🔒 מדיניות פרטיות / Privacy Policy"),
+        "disclosure": ("affiliate_disclosure_disclaimer.md", "📢 גילוי שותפות והצהרת אחריות / Affiliate Disclosure & Disclaimer")
+    }
+    
+    if doc_type in docs:
+        filename, title = docs[doc_type]
+        
+        # כותרת
+        st.title(title)
+        st.markdown("---")
+        
+        # כפתור חזרה
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            if st.button("⬅️ חזרה לאפליקציה / Back to App", use_container_width=True):
+                st.session_state.page = "main"
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # תוכן המסמך
+        content = load_legal_document(filename)
+        st.markdown(content, unsafe_allow_html=True)
+        
+        # כפתור חזרה נוסף בתחתית
+        st.markdown("---")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            if st.button("⬅️ חזרה לאפליקציה / Back to App", key="back_bottom", use_container_width=True):
+                st.session_state.page = "main"
+                st.rerun()
+    else:
+        st.error("❌ מסמך לא נמצא / Document not found")
+
+def add_legal_sidebar():
+    """מוסיף קישורים למסמכים משפטיים בסיידבר"""
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### ⚖️ מסמכים משפטיים / Legal")
+    
+    # כפתורים למסמכים
+    if st.sidebar.button("📋 תנאי שימוש\nTerms of Service", use_container_width=True):
+        st.session_state.page = "terms"
+        st.rerun()
+    
+    if st.sidebar.button("🔒 מדיניות פרטיות\nPrivacy Policy", use_container_width=True):
+        st.session_state.page = "privacy"
+        st.rerun()
+    
+    if st.sidebar.button("📢 גילוי שותפות\nAffiliate Disclosure", use_container_width=True):
+        st.session_state.page = "disclosure"
+        st.rerun()
+    
+    # גילוי שותפות קצר (חובה!)
+    st.sidebar.markdown("---")
+    st.sidebar.info("""
+    **💰 גילוי שותפות**
+    
+    אנו משתתפים בתוכניות שותפות ומרוויחים עמלה מרכישות דרך הקישורים שלנו, ללא עלות נוספת עבורך.
+    
+    **Affiliate Disclosure**
+    
+    We participate in affiliate programs and earn commissions from purchases through our links at no extra cost to you.
+    """)
+    
+    # זכויות יוצרים
+    st.sidebar.markdown("---")
+    st.sidebar.caption("© 2026 Price Comparison App\nAll rights reserved")
+
+def show_affiliate_banner():
+    """מציג באנר גילוי שותפות בראש הדף"""
+    st.warning("""
+    ### ⚠️ גילוי חשוב / Important Disclosure
+    
+    **עברית:** הקישורים באפליקציה זו הם קישורי שותפות. אנו מרוויחים עמלה מרכישות דרך הקישורים. 
+    המחירים זהים עבורך, אך העמלה עוזרת לנו לתחזק את האפליקציה בחינם.
+    
+    **English:** Links in this app are affiliate links. We earn commissions from purchases through our links.
+    Prices are the same for you, but commissions help us maintain the app for free.
+    
+    [📋 תנאים / Terms](#) | [🔒 פרטיות / Privacy](#) | [📢 גילוי מלא / Full Disclosure](#)
+    """)
+
+# =====================================
+# אתחול Session State
+# =====================================
+if 'page' not in st.session_state:
+    st.session_state.page = "main"
+
 if 'search_history' not in st.session_state:
     st.session_state.search_history = []
+
+if 'language' not in st.session_state:
+    st.session_state.language = "he"  # he/en
+
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = False
-if 'language' not in st.session_state:
-    st.session_state.language = 'he'
-if 'color_theme' not in st.session_state:
-    st.session_state.color_theme = 'blue'
 
-def add_to_history(item_name, stores_data):
-    if item_name:
-        history_item = {
-            'item': item_name,
-            'stores': stores_data,
-            'timestamp': pd.Timestamp.now().strftime('%d/%m/%Y %H:%M')
-        }
-        st.session_state.search_history.insert(0, history_item)
-        st.session_state.search_history = st.session_state.search_history[:10]
-
-TEXTS = {
-    'he': {
-        'title': '🔍 חיפוש והשוואת מחירים',
-        'subtitle': 'מצא את המחיר הטוב ביותר בקלות!',
-        'settings': '⚙️ הגדרות',
-        'dark_mode': '🌙 מצב לילה',
-        'language': '🌍 שפה',
-        'color_theme': '🎨 ערכת צבעים',
-        'history': '📜 חיפושים אחרונים',
-        'no_history': 'אין חיפושים קודמים',
-        'clear_history': '🗑️ נקה היסטוריה',
-        'search_tab': '🔗 חיפוש מהיר',
-        'compare_tab': '📊 השוואת מחירים',
-        'payments_tab': '💳 מחשבון תשלומים',
-        'specs_tab': '📋 השוואת מפרטים',
-        'coupons_tab': '🎁 קופונים',
-    },
-    'en': {
-        'title': '🔍 Price Comparison',
-        'subtitle': 'Find the best price easily!',
-        'settings': '⚙️ Settings',
-        'dark_mode': '🌙 Dark Mode',
-        'language': '🌍 Language',
-        'color_theme': '🎨 Color Theme',
-        'history': '📜 Recent Searches',
-        'no_history': 'No recent searches',
-        'clear_history': '🗑️ Clear History',
-        'search_tab': '🔗 Quick Search',
-        'compare_tab': '📊 Compare Prices',
-        'payments_tab': '💳 Payment Calculator',
-        'specs_tab': '📋 Compare Specs',
-        'coupons_tab': '🎁 Coupons',
-    }
-}
-
-def t(key):
-    return TEXTS[st.session_state.language].get(key, key)
-
-THEMES = {
-    'blue': {'primary': '#1f77b4', 'secondary': '#1557a0', 'accent': '#FF6B35'},
-    'green': {'primary': '#2ecc71', 'secondary': '#27ae60', 'accent': '#e74c3c'},
-    'purple': {'primary': '#9b59b6', 'secondary': '#8e44ad', 'accent': '#f39c12'},
-    'red': {'primary': '#e74c3c', 'secondary': '#c0392b', 'accent': '#3498db'},
-}
-
-theme = THEMES[st.session_state.color_theme]
-
-if st.session_state.dark_mode:
-    bg_color = "#1a1a1a"
-    text_color = "#ffffff"
-    card_bg = "#2d2d2d"
-else:
-    bg_color = "#ffffff"
-    text_color = "#000000"
-    card_bg = "#f0f2f6"
-
-st.markdown(f"""
+# =====================================
+# CSS מותאם אישית
+# =====================================
+st.markdown("""
 <style>
-    .stApp {{
-        background-color: {bg_color};
-        color: {text_color};
-    }}
-    h1, h2, h3, h4, h5, h6, p, span, div {{
-        color: {text_color} !important;
-    }}
-    h1 {{
-        text-align: center;
-        color: {theme['primary']} !important;
-    }}
-    .stButton button {{
-        width: 100%;
-        background-color: {theme['primary']};
-        color: white;
-        font-size: 18px;
+    /* גופנים */
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&family=Roboto:wght@300;400;500;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Heebo', 'Roboto', sans-serif;
+    }
+    
+    /* כפתורים */
+    .stButton button {
+        font-size: 16px;
+        font-weight: 500;
+        padding: 10px 24px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* טבלאות */
+    .dataframe {
+        font-size: 14px !important;
+        border-radius: 8px !important;
+    }
+    
+    /* כרטיסים */
+    .stMetric {
+        background-color: #f8f9fa;
         padding: 15px;
-        border-radius: 10px;
-        font-weight: bold;
-    }}
-    .stButton button:hover {{
-        background-color: {theme['secondary']};
-    }}
-    .store-link {{
-        text-align: center;
-        padding: 20px;
-        border-radius: 10px;
-        background-color: {card_bg};
-        margin: 10px 0;
-    }}
-    .history-item {{
-        background-color: {card_bg};
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-    }}
-    @media (max-width: 768px) {{
-        .stButton button {{
-            font-size: 14px;
-            padding: 10px;
-        }}
-    }}
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    /* הסתרת תפריט */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* באנרים */
+    .stAlert {
+        border-radius: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-with st.sidebar:
-    st.title(t('settings'))
+# =====================================
+# פונקציה ראשית - דף האפליקציה
+# =====================================
+def main_app():
+    """הדף הראשי של האפליקציה"""
     
-    dark_mode_toggle = st.toggle(t('dark_mode'), value=st.session_state.dark_mode)
-    if dark_mode_toggle != st.session_state.dark_mode:
-        st.session_state.dark_mode = dark_mode_toggle
-        st.rerun()
+    # הצגת באנר גילוי שותפות
+    show_affiliate_banner()
     
-    lang = st.selectbox(t('language'), ['עברית', 'English'], index=0 if st.session_state.language == 'he' else 1)
-    new_lang = 'he' if lang == 'עברית' else 'en'
-    if new_lang != st.session_state.language:
-        st.session_state.language = new_lang
-        st.rerun()
-    
-    color = st.selectbox(t('color_theme'), ['כחול', 'ירוק', 'סגול', 'אדום'], 
-                         index=['blue', 'green', 'purple', 'red'].index(st.session_state.color_theme))
-    new_color = {'כחול': 'blue', 'ירוק': 'green', 'סגול': 'purple', 'אדום': 'red'}[color]
-    if new_color != st.session_state.color_theme:
-        st.session_state.color_theme = new_color
-        st.rerun()
-    
+    # כותרת ראשית
+    st.title("🔍 אפליקציית חיפוש והשוואת מחירים")
+    st.markdown("### Price Comparison Application")
     st.markdown("---")
-    st.subheader(t('history'))
     
-    if len(st.session_state.search_history) > 0:
-        for idx, hist in enumerate(st.session_state.search_history[:5]):
-            with st.container():
-                st.markdown(f"""
-                <div class="history-item">
-                    <b>{hist['item']}</b><br>
-                    <small>{hist['timestamp']}</small>
-                </div>
-                """, unsafe_allow_html=True)
+    # טאבים
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🔎 חיפוש מהיר / Quick Search",
+        "📊 השוואת מחירים / Price Compare",
+        "💳 מחשבון תשלומים / Payment Calculator",
+        "📋 השוואת מפרטים / Specs Compare",
+        "🎫 קופונים / Coupons"
+    ])
+    
+    # ==================
+    # טאב 1: חיפוש מהיר
+    # ==================
+    with tab1:
+        st.subheader("🔎 חיפוש מהיר")
         
-        if st.button(t('clear_history')):
-            st.session_state.search_history = []
-            st.rerun()
-    else:
-        st.info(t('no_history'))
-    
-    st.markdown("---")
-    st.caption("נוצר ע״י נחמיה © 2025")
-
-st.title(t('title'))
-st.caption(t('subtitle'))
-
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    t('search_tab'), 
-    t('compare_tab'), 
-    t('payments_tab'),
-    t('specs_tab'),
-    t('coupons_tab')
-])
-
-STORES = {
-    'זאפ': 'https://www.zap.co.il/search.aspx?keyword=',
-    'KSP': 'https://ksp.co.il/web/search?q=',
-    'יד2': 'https://www.yad2.co.il/products/search?query=',
-    'iDigital': 'https://www.idigital.co.il/search?q=',
-    'Bug': 'https://www.bug.co.il/search?q=',
-    'Ivory': 'https://www.ivory.co.il/catalog.php?act=cat&keyword=',
-    'Plonter': 'https://plonter.co.il/search?q=',
-    'Gandor': 'https://www.gandor.co.il/search?q=',
-    'Terminal X': 'https://www.terminalx.com/search?q=',
-    'Castro': 'https://www.castro.com/search?q=',
-}
-
-with tab1:
-    st.markdown("### 🔍 חפש מוצר בחנויות")
-    st.info("💡 **טיפ:** לחץ על החנות, מצא את המחיר, וחזור להשוואה")
-    
-    item = st.text_input("מה אתה מחפש?", placeholder="לדוגמה: אייפון 15 Pro", key="search_item")
-    
-    if item:
-        item_encoded = urllib.parse.quote(item)
-        st.success(f"✅ מחפש: **{item}**")
+        col1, col2 = st.columns([3, 1])
         
-        st.markdown("### 🏪 בחר חנות:")
-        
-        cols = st.columns(3)
-        for idx, (store_name, store_url) in enumerate(STORES.items()):
-            with cols[idx % 3]:
-                full_url = store_url + item_encoded
-                st.markdown(f"""
-                <div class="store-link">
-                    <h4>{store_name}</h4>
-                    <a href="{full_url}" target="_blank">
-                        <button style="padding: 8px 20px; font-size: 14px; background-color: {theme['primary']}; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
-                            חפש
-                        </button>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
-
-with tab2:
-    st.markdown("### 📊 השווה את המחירים שמצאת")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        item_compare = st.text_input("שם המוצר:", placeholder="אייפון 15 Pro", key="compare_item")
-    with col2:
-        budget = st.number_input("💰 תקציב מקסימלי", min_value=0, value=0, step=100)
-    
-    notes = st.text_area("📝 הערות על המוצר", placeholder="למשל: צבע, נפח אחסון, וכו'")
-    
-    st.markdown("#### 💰 הזן מחירים והנחות:")
-    
-    num_stores_to_show = st.slider("🏪 כמה חנויות להשוות?", min_value=3, max_value=10, value=6, step=1)
-    
-    prices_data = []
-    
-    ALL_STORES = ['זאפ', 'KSP', 'iDigital', 'Bug', 'יד2', 'Ivory', 'Plonter', 'Gandor', 'Terminal X', 'Castro']
-    
-    for idx, store_name in enumerate(ALL_STORES[:num_stores_to_show]):
-        with st.expander(f"🏪 {store_name}"):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                price = st.number_input(f"מחיר", min_value=0, value=0, step=10, key=f"{store_name}_price_{idx}")
-            with col2:
-                discount = st.number_input(f"הנחה %", min_value=0, max_value=100, value=0, step=5, key=f"{store_name}_discount_{idx}")
-            
-            if price > 0:
-                final_price = price * (1 - discount / 100)
-                prices_data.append({
-                    "store": f"🏪 {store_name}",
-                    "price": price,
-                    "discount": discount,
-                    "final_price": final_price
-                })
-    
-    with st.expander("➕ חנות נוספת (מותאמת אישית)"):
-        other_store = st.text_input("שם החנות")
-        col1, col2 = st.columns([2, 1])
         with col1:
-            other_price = st.number_input("מחיר", min_value=0, value=0, step=10, key="other_price_custom")
-        with col2:
-            other_discount = st.number_input("הנחה %", min_value=0, max_value=100, value=0, step=5, key="other_discount_custom")
+            search_query = st.text_input(
+                "מה אתה מחפש? / What are you looking for?",
+                placeholder="לדוגמה: iPhone 15 Pro, Sony WH-1000XM5...",
+                key="quick_search"
+            )
         
-        if other_price > 0 and other_store:
-            final_other = other_price * (1 - other_discount / 100)
-            prices_data.append({
-                "store": f"⭐ {other_store}",
-                "price": other_price,
-                "discount": other_discount,
-                "final_price": final_other
+        with col2:
+            st.write("")  # ריווח
+            st.write("")  # ריווח
+            search_button = st.button("🔍 חפש / Search", use_container_width=True)
+        
+        if search_button and search_query:
+            # שמירת חיפוש בהיסטוריה
+            st.session_state.search_history.append({
+                'query': search_query,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             })
-    
-    if st.button("🔍 השווה וראה את התוצאה!"):
-        if item_compare and len(prices_data) > 0:
-            add_to_history(item_compare, prices_data)
-            prices_data.sort(key=lambda x: x['final_price'])
             
-            df_data = {
-                "חנות": [d['store'] for d in prices_data],
-                "מחיר מקורי": [f"₪{d['price']:,}" for d in prices_data],
-                "הנחה": [f"{d['discount']}%" if d['discount'] > 0 else "-" for d in prices_data],
-                "מחיר סופי": [f"₪{d['final_price']:,.0f}" for d in prices_data]
-            }
+            st.success(f"✅ מחפש: {search_query}")
             
-            df = pd.DataFrame(df_data)
+            # סימולציה של תוצאות
+            st.markdown("---")
+            st.subheader("📦 תוצאות / Results")
+            
+            # יצירת דוגמה לתוצאות
+            stores = ["Amazon", "AliExpress", "eBay", "Best Buy", "Walmart"]
+            results = []
+            
+            for i, store in enumerate(stores):
+                base_price = 999 + (i * 50)
+                results.append({
+                    "חנות / Store": store,
+                    "מחיר / Price": f"${base_price}",
+                    "משלוח / Shipping": "חינם / Free" if i % 2 == 0 else f"${10 + i*2}",
+                    "דירוג / Rating": f"{'⭐' * (5-i)} ({4.5 - i*0.2}/5)",
+                    "זמן אספקה / Delivery": f"{3 + i*2}-{5 + i*2} ימים / days"
+                })
+            
+            df = pd.DataFrame(results)
             st.dataframe(df, use_container_width=True, hide_index=True)
             
-            col1, col2 = st.columns(2)
+            # כפתורי קישור (Affiliate Links)
+            st.markdown("### 🛒 קישורים לרכישה / Purchase Links")
+            cols = st.columns(len(stores))
             
-            with col1:
-                st.markdown("### 📊 גרף עמודות")
-                fig = go.Figure()
-                fig.add_trace(go.Bar(
-                    name='מחיר מקורי',
-                    x=[d['store'] for d in prices_data],
-                    y=[d['price'] for d in prices_data],
-                    marker_color='lightblue'
-                ))
-                fig.add_trace(go.Bar(
-                    name='מחיר סופי',
-                    x=[d['store'] for d in prices_data],
-                    y=[d['final_price'] for d in prices_data],
-                    marker_color='green'
-                ))
-                fig.update_layout(barmode='group', height=350)
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                st.markdown("### 🥧 גרף עוגה")
-                fig2 = px.pie(
-                    values=[d['final_price'] for d in prices_data],
-                    names=[d['store'] for d in prices_data],
-                    title='התפלגות מחירים'
-                )
-                fig2.update_layout(height=350)
-                st.plotly_chart(fig2, use_container_width=True)
-            
-            best_deal = min(prices_data, key=lambda x: x['final_price'])
-            st.success(f"### 🏆 **ההצעה הטובה ביותר:** {best_deal['store']} - ₪{best_deal['final_price']:,.0f}")
-            
-            if budget > 0:
-                if best_deal['final_price'] <= budget:
-                    diff = budget - best_deal['final_price']
-                    st.success(f"✅ **שווה לקנות!** המחיר בתוך התקציב (נשאר לך ₪{diff:,.0f})")
-                else:
-                    diff = best_deal['final_price'] - budget
-                    st.warning(f"⚠️ **חורג מהתקציב** ב-₪{diff:,.0f}")
-            
-            if notes:
-                st.info(f"📝 **הערות:** {notes}")
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                csv = df.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    "💾 הורד CSV",
-                    csv,
-                    f"comparison_{item_compare}.csv",
-                    "text/csv"
-                )
-            
-            with col2:
-                whatsapp_text = f"🔍 {item_compare}%0A%0A"
-                for d in prices_data:
-                    whatsapp_text += f"{d['store']}: ₪{d['final_price']:,.0f}%0A"
-                whatsapp_text += f"%0A🏆 הכי זול: {best_deal['store']}"
-                st.markdown(f'<a href="https://wa.me/?text={whatsapp_text}" target="_blank"><button style="padding: 10px; background-color: #25D366; color: white; border: none; border-radius: 5px; width: 100%; cursor: pointer;">💬 שתף</button></a>', unsafe_allow_html=True)
-            
-            with col3:
-                if len(prices_data) > 1:
-                    st.metric("📊 הפרש", f"₪{max(d['final_price'] for d in prices_data) - best_deal['final_price']:,.0f}")
+            for idx, col in enumerate(cols):
+                with col:
+                    # קישור אמיתי לחנויות (כאן תשים את קישורי האפיליאט שלך)
+                    if stores[idx] == "Amazon":
+                        link = f"https://www.amazon.com/s?k={search_query.replace(' ', '+')}"
+                    elif stores[idx] == "AliExpress":
+                        link = f"https://www.aliexpress.com/wholesale?SearchText={search_query.replace(' ', '+')}"
+                    elif stores[idx] == "eBay":
+                        link = f"https://www.ebay.com/sch/i.html?_nkw={search_query.replace(' ', '+')}"
+                    elif stores[idx] == "Best Buy":
+                        link = f"https://www.bestbuy.com/site/searchpage.jsp?st={search_query.replace(' ', '+')}"
+                    else:
+                        link = f"https://www.walmart.com/search?q={search_query.replace(' ', '+')}"
+                    
+                    st.link_button(
+                        f"🛒 {stores[idx]}",
+                        link,
+                        use_container_width=True
+                    )
         
-        elif not item_compare:
-            st.warning("⚠️ נא להזין שם מוצר")
-        else:
-            st.warning("⚠️ נא להזין לפחות מחיר אחד")
-
-with tab3:
-    st.markdown("### 💳 מחשבון תשלומים")
+        # היסטוריית חיפושים
+        if st.session_state.search_history:
+            with st.expander("📜 היסטוריית חיפושים / Search History"):
+                for item in reversed(st.session_state.search_history[-10:]):  # 10 אחרונים
+                    st.text(f"🕐 {item['timestamp']} - {item['query']}")
     
-    calc_price = st.number_input("💰 מחיר המוצר", min_value=0, value=3000, step=100)
+    # ==================
+    # טאב 2: השוואת מחירים
+    # ==================
+    with tab2:
+        st.subheader("📊 השוואת מחירים מפורטת")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            product_name = st.text_input("שם המוצר / Product Name", key="compare_product")
+        
+        with col2:
+            num_stores = st.slider("כמה חנויות להשוות? / How many stores?", 2, 10, 5)
+        
+        if st.button("📊 השווה מחירים / Compare Prices", use_container_width=True):
+            if product_name:
+                st.success(f"✅ משווה מחירים עבור: {product_name}")
+                
+                # יצירת נתונים להשוואה
+                stores_list = ["Amazon", "AliExpress", "eBay", "Best Buy", "Walmart", 
+                              "Newegg", "Target", "B&H Photo", "Adorama", "Costco"][:num_stores]
+                
+                comparison_data = []
+                for i, store in enumerate(stores_list):
+                    base = 999
+                    price = base + (i * 45)
+                    shipping = 0 if i % 2 == 0 else 10 + (i * 2)
+                    total = price + shipping
+                    
+                    comparison_data.append({
+                        "מיקום / Rank": i + 1,
+                        "חנות / Store": store,
+                        "מחיר בסיס / Base Price": f"${price}",
+                        "משלוח / Shipping": f"${shipping}" if shipping > 0 else "חינם / Free",
+                        "סה\"כ / Total": f"${total}",
+                        "חיסכון / Savings": f"${total - (base + 0)}" if i > 0 else "-"
+                    })
+                
+                df_compare = pd.DataFrame(comparison_data)
+                
+                # הדגשת העסקה הטובה ביותר
+                st.success("🏆 העסקה הטובה ביותר / Best Deal: " + stores_list[0])
+                
+                st.dataframe(df_compare, use_container_width=True, hide_index=True)
+                
+                # גרף השוואה
+                try:
+                    import plotly.express as px
+                    
+                    prices_for_chart = [int(row['סה"כ / Total'].replace('$','')) 
+                                       for row in comparison_data]
+                    
+                    fig = px.bar(
+                        x=stores_list,
+                        y=prices_for_chart,
+                        labels={'x': 'חנות / Store', 'y': 'מחיר כולל / Total Price ($)'},
+                        title='השוואת מחירים ויזואלית / Visual Price Comparison',
+                        color=prices_for_chart,
+                        color_continuous_scale='RdYlGn_r'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                except:
+                    st.info("💡 התקן plotly לגרפים אינטראקטיביים: pip install plotly")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        num_payments = st.selectbox("🔢 מספר תשלומים", [1, 3, 6, 10, 12, 24, 36])
-    with col2:
-        interest_rate = st.number_input("📈 ריבית חודשית (%)", min_value=0.0, max_value=10.0, value=0.0, step=0.1)
-    
-    if st.button("🧮 חשב תשלומים"):
-        if calc_price > 0:
-            if interest_rate == 0:
-                monthly_payment = calc_price / num_payments
-                total_payment = calc_price
-                total_interest = 0
+    # ==================
+    # טאב 3: מחשבון תשלומים
+    # ==================
+    with tab3:
+        st.subheader("💳 מחשבון תשלומים")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            price = st.number_input("מחיר המוצר / Product Price ($)", min_value=0.0, value=999.0, step=10.0)
+        
+        with col2:
+            months = st.slider("מספר תשלומים / Number of Payments", 1, 36, 12)
+        
+        with col3:
+            interest = st.number_input("ריבית שנתית / Annual Interest (%)", min_value=0.0, value=5.0, step=0.5)
+        
+        if st.button("💰 חשב / Calculate", use_container_width=True):
+            # חישוב תשלום חודשי
+            monthly_interest = interest / 100 / 12
+            
+            if monthly_interest > 0:
+                monthly_payment = price * (monthly_interest * (1 + monthly_interest)**months) / \
+                                 ((1 + monthly_interest)**months - 1)
             else:
-                monthly_rate = interest_rate / 100
-                monthly_payment = calc_price * (monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)
-                total_payment = monthly_payment * num_payments
-                total_interest = total_payment - calc_price
+                monthly_payment = price / months
             
-            st.success(f"### 💳 תשלום חודשי: ₪{monthly_payment:,.2f}")
+            total_paid = monthly_payment * months
+            total_interest = total_paid - price
             
-            col1, col2, col3 = st.columns(3)
+            # תצוגת תוצאות
+            st.markdown("---")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
             with col1:
-                st.metric("💰 מחיר מקורי", f"₪{calc_price:,}")
+                st.metric("תשלום חודשי / Monthly Payment", f"${monthly_payment:.2f}")
+            
             with col2:
-                st.metric("💸 סה״כ לתשלום", f"₪{total_payment:,.0f}")
+                st.metric("סה\"כ לתשלום / Total Payment", f"${total_paid:.2f}")
+            
             with col3:
-                st.metric("📊 עלות ריבית", f"₪{total_interest:,.0f}")
+                st.metric("סה\"כ ריבית / Total Interest", f"${total_interest:.2f}")
             
-            payments_list = [monthly_payment] * num_payments
-            fig = go.Figure(data=[
-                go.Bar(x=[f"#{i+1}" for i in range(num_payments)], y=payments_list, marker_color='lightgreen')
-            ])
-            fig.update_layout(title=f'פריסת {num_payments} תשלומים', height=350)
-            st.plotly_chart(fig, use_container_width=True)
+            with col4:
+                st.metric("תוספת אחוזים / Percentage Added", f"{(total_interest/price)*100:.1f}%")
             
-            if total_interest > 0:
-                st.warning(f"⚠️ תשלם ₪{total_interest:,.0f} נוספים בריבית!")
-
-with tab4:
-    st.markdown("### 📋 השוואת מפרטים טכניים")
-    st.info("💡 השווה בין 2-3 מוצרים דומים")
-    
-    num_products = st.slider("כמה מוצרים להשוות?", 2, 3, 2)
-    
-    products = []
-    cols = st.columns(num_products)
-    
-    for i in range(num_products):
-        with cols[i]:
-            st.markdown(f"#### מוצר {i+1}")
-            name = st.text_input(f"שם", key=f"spec_name_{i}")
-            price = st.number_input(f"מחיר", min_value=0, value=0, key=f"spec_price_{i}")
-            spec1 = st.text_input(f"מפרט 1", placeholder="זיכרון", key=f"spec1_{i}")
-            spec2 = st.text_input(f"מפרט 2", placeholder="מעבד", key=f"spec2_{i}")
-            spec3 = st.text_input(f"מפרט 3", placeholder="מצלמה", key=f"spec3_{i}")
-            rating = st.slider(f"דירוג", 1, 5, 4, key=f"rating_{i}")
+            # טבלת פירוט תשלומים
+            st.markdown("---")
+            st.subheader("📋 פירוט תשלומים / Payment Breakdown")
             
-            products.append({
-                'name': name,
-                'price': price,
-                'spec1': spec1,
-                'spec2': spec2,
-                'spec3': spec3,
-                'rating': rating
-            })
+            payment_schedule = []
+            remaining = price
+            
+            for i in range(1, months + 1):
+                interest_payment = remaining * monthly_interest
+                principal_payment = monthly_payment - interest_payment
+                remaining -= principal_payment
+                
+                payment_schedule.append({
+                    "תשלום / Payment #": i,
+                    "תשלום חודשי / Monthly": f"${monthly_payment:.2f}",
+                    "קרן / Principal": f"${principal_payment:.2f}",
+                    "ריבית / Interest": f"${interest_payment:.2f}",
+                    "יתרה / Balance": f"${max(0, remaining):.2f}"
+                })
+            
+            df_payments = pd.DataFrame(payment_schedule)
+            st.dataframe(df_payments, use_container_width=True, hide_index=True)
     
-    if st.button("📊 השווה מפרטים"):
-        if all(p['name'] for p in products):
-            comparison_data = {
-                'מאפיין': ['שם', 'מחיר', 'מפרט 1', 'מפרט 2', 'מפרט 3', 'דירוג'],
+    # ==================
+    # טאב 4: השוואת מפרטים
+    # ==================
+    with tab4:
+        st.subheader("📋 השוואת מפרטים טכניים")
+        st.info("💡 הכנס מפרטים של עד 3 מוצרים להשוואה")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        products = []
+        
+        for idx, col in enumerate([col1, col2, col3]):
+            with col:
+                st.markdown(f"### מוצר {idx + 1} / Product {idx + 1}")
+                
+                product = {
+                    "name": st.text_input(f"שם / Name", key=f"spec_name_{idx}"),
+                    "price": st.number_input(f"מחיר / Price ($)", min_value=0.0, key=f"spec_price_{idx}"),
+                    "brand": st.text_input(f"יצרן / Brand", key=f"spec_brand_{idx}"),
+                    "model": st.text_input(f"דגם / Model", key=f"spec_model_{idx}"),
+                    "warranty": st.selectbox(f"אחריות / Warranty", 
+                                            ["1 year", "2 years", "3 years", "5 years"], 
+                                            key=f"spec_warranty_{idx}")
+                }
+                
+                products.append(product)
+        
+        if st.button("🔄 השווה / Compare", use_container_width=True):
+            # בניית טבלת השוואה
+            comparison = {
+                "מאפיין / Feature": ["שם / Name", "מחיר / Price", "יצרן / Brand", "דגם / Model", "אחריות / Warranty"],
             }
             
-            for i, p in enumerate(products):
-                comparison_data[f'מוצר {i+1}'] = [
-                    p['name'],
-                    f"₪{p['price']:,}",
-                    p['spec1'] or '-',
-                    p['spec2'] or '-',
-                    p['spec3'] or '-',
-                    '⭐' * p['rating']
+            for idx, product in enumerate(products):
+                comparison[f"מוצר {idx + 1} / Product {idx + 1}"] = [
+                    product["name"] or "-",
+                    f"${product['price']:.2f}" if product['price'] > 0 else "-",
+                    product["brand"] or "-",
+                    product["model"] or "-",
+                    product["warranty"]
                 ]
             
-            df_comp = pd.DataFrame(comparison_data)
-            st.dataframe(df_comp, use_container_width=True, hide_index=True)
+            df_specs = pd.DataFrame(comparison)
+            st.dataframe(df_specs, use_container_width=True, hide_index=True)
             
-            best_price_idx = min(range(len(products)), key=lambda i: products[i]['price'] if products[i]['price'] > 0 else float('inf'))
-            best_rating_idx = max(range(len(products)), key=lambda i: products[i]['rating'])
-            
-            st.success(f"💰 **הזול ביותר:** {products[best_price_idx]['name']} - ₪{products[best_price_idx]['price']:,}")
-            st.success(f"⭐ **הדירוג הגבוה ביותר:** {products[best_rating_idx]['name']} - {products[best_rating_idx]['rating']}/5")
-        else:
-            st.warning("⚠️ נא למלא שמות לכל המוצרים")
+            # המלצה
+            valid_products = [p for p in products if p['name'] and p['price'] > 0]
+            if valid_products:
+                best = min(valid_products, key=lambda x: x['price'])
+                st.success(f"🏆 המוצר הזול ביותר / Cheapest Product: {best['name']} - ${best['price']:.2f}")
+    
+    # ==================
+    # טאב 5: קופונים
+    # ==================
+    with tab5:
+        st.subheader("🎫 קופונים והנחות")
+        
+        # דוגמאות לקופונים
+        coupons = [
+            {
+                "store": "Amazon",
+                "code": "SAVE20",
+                "discount": "20% הנחה / 20% Off",
+                "expiry": "31/01/2026",
+                "link": "https://www.amazon.com"
+            },
+            {
+                "store": "AliExpress",
+                "code": "NEW15",
+                "discount": "15% הנחה למשתמשים חדשים / 15% Off for New Users",
+                "expiry": "28/02/2026",
+                "link": "https://www.aliexpress.com"
+            },
+            {
+                "store": "eBay",
+                "code": "TECH10",
+                "discount": "$10 הנחה על מוצרי טכנולוגיה / $10 Off Tech Items",
+                "expiry": "15/02/2026",
+                "link": "https://www.ebay.com"
+            }
+        ]
+        
+        for coupon in coupons:
+            with st.container():
+                col1, col2, col3, col4 = st.columns([2, 3, 2, 2])
+                
+                with col1:
+                    st.markdown(f"### {coupon['store']}")
+                
+                with col2:
+                    st.code(coupon['code'])
+                    st.caption(coupon['discount'])
+                
+                with col3:
+                    st.text(f"⏰ עד / Until: {coupon['expiry']}")
+                
+                with col4:
+                    st.link_button("🛒 השתמש / Use Now", coupon['link'], use_container_width=True)
+                
+                st.markdown("---")
 
-with tab5:
-    st.markdown("### 🎁 אתרי קופונים והנחות")
-    st.info("💡 חפש קופונים לפני הקנייה וחסוך עוד יותר!")
+# =====================================
+# ניהול ניווט בין דפים
+# =====================================
+def main():
+    """פונקציה ראשית לניהול הניווט"""
     
-    coupon_sites = {
-        'זאפ דילים': 'https://www.zap.co.il/deals/',
-        'פורטל המבצעים': 'https://www.portal.co.il/',
-        'בזק דילס': 'https://www.bezek.deals/',
-        'Honey': 'https://www.joinhoney.com/',
-        'הוט דילס': 'https://www.hotdeals.co.il/',
-        'פייסבוק מבצעים': 'https://www.facebook.com/groups/mbzaim/',
-    }
+    # הוספת סיידבר משפטי
+    add_legal_sidebar()
     
-    cols = st.columns(2)
-    for idx, (site_name, site_url) in enumerate(coupon_sites.items()):
-        with cols[idx % 2]:
-            st.markdown(f"""
-            <div class="store-link">
-                <h4>🎁 {site_name}</h4>
-                <a href="{site_url}" target="_blank">
-                    <button style="padding: 10px 20px; background-color: {theme['accent']}; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
-                        לחץ לקופונים
-                    </button>
-                </a>
-            </div>
-            """, unsafe_allow_html=True)
+    # ניווט לפי page state
+    if st.session_state.page == "main":
+        main_app()
     
-    st.markdown("---")
-    st.markdown("### 💡 טיפים לחיסכון")
+    elif st.session_state.page == "terms":
+        show_legal_page("terms")
     
-    tips = [
-        "✅ חפש קופונים לפני כל קנייה",
-        "✅ השווה מחירים ב-3 חנויות לפחות",
-        "✅ קנה בימי מבצעים (שישי שחור, סייבר מנדיי)",
-        "✅ הירשם לניוזלטרים של החנויות",
-        "✅ שתף עגלה ותחזור אחרי יום - לפעמים יש הנחה",
-        "✅ השתמש בכרטיסי אשראי עם הטבות",
-    ]
+    elif st.session_state.page == "privacy":
+        show_legal_page("privacy")
     
-    for tip in tips:
-        st.markdown(f"- {tip}")
+    elif st.session_state.page == "disclosure":
+        show_legal_page("disclosure")
+    
+    else:
+        st.error("❌ דף לא קיים / Page not found")
+        if st.button("🏠 חזרה לדף הבית / Back to Home"):
+            st.session_state.page = "main"
+            st.rerun()
 
-st.markdown("---")
-st.caption("🔍 אפליקציית חיפוש והשוואת מחירים מתקדמת | נוצר ע״י מאור איתן © 2026")
+# =====================================
+# הרצת האפליקציה
+# =====================================
+if __name__ == "__main__":
+    main()
