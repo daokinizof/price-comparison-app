@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import json
 
 # =====================================
 # הגדרות עמוד
@@ -14,29 +13,346 @@ st.set_page_config(
 )
 
 # =====================================
+# מסמכים משפטיים - מוטמעים בקוד
+# =====================================
+
+TERMS_OF_SERVICE = """
+# תנאי שימוש / Terms of Service
+
+**תאריך עדכון אחרון: 15 ינואר 2026 / Last Updated: January 15, 2026**
+
+---
+
+## עברית
+
+### 1. קבלת התנאים
+השימוש באפליקציית השוואת המחירים ("האפליקציה") מהווה הסכמה מלאה לתנאי שימוש אלה. אם אינך מסכים לתנאים אלה, אנא הימנע משימוש באפליקציה.
+
+### 2. תיאור השירות
+האפליקציה מספקת כלי להשוואת מחירי מוצרים בין חנויות שונות. השירות ניתן "כמות שהוא" (AS-IS) וללא כל אחריות או התחייבות לדיוק, זמינות או התאמה למטרה מסוימת.
+
+### 3. דיוק המידע
+- **אין אחריות לדיוק המחירים**: המחירים המוצגים באפליקציה הינם אינדיקטיביים בלבד ועשויים להשתנות בכל עת ללא הודעה מוקדמת.
+- **עדכון מחירים**: המחירים מתעדכנים מעת לעת, אך אין ערבות שהם משקפים את המחירים הנוכחיים בחנויות.
+- **זמינות מוצרים**: אין ערבות לזמינות המוצרים המוצגים באפליקציה.
+- **אחריות המשתמש**: על המשתמש לאמת את המחיר הסופי, זמינות המוצר ותנאי הרכישה ישירות בחנות המוכרת.
+
+### 4. קישורים לאתרי צד שלישי
+- האפליקציה מכילה קישורי שותפות (Affiliate Links) לחנויות ואתרים חיצוניים.
+- איננו אחראים לתוכן, למדיניות הפרטיות או לפעולות של אתרים אלה.
+- השימוש באתרים חיצוניים כפוף לתנאי השימוש שלהם.
+
+### 5. הכנסות משותפויות (Affiliate Revenue)
+- **גילוי מלא**: האפליקציה משתתפת בתוכניות שותפות של Amazon Associates, AliExpress ואחרים.
+- **עמלות**: אנו מרוויחים עמלה כאשר משתמש רוכש מוצר דרך הקישורים באפליקציה.
+- **ללא עלות נוספת**: העמלה אינה משפיעה על המחיר שהמשתמש משלם.
+- **עצמאות**: המלצותינו אינן מושפעות מגובה העמלות.
+
+### 6. קניין רוחני
+- כל התכנים, העיצוב והקוד באפליקציה מוגנים בזכויות יוצרים.
+- אין להעתיק, לשכפל או להפיץ את האפליקציה ללא אישור בכתב.
+- שמות המותגים והלוגואים של החנויות הינם קניינם של בעליהם המקוריים.
+
+### 7. הגבלת אחריות
+- **נזקים עקיפים**: לא נהיה אחראים לכל נזק ישיר, עקיף, מקרי או תוצאתי הנובע משימוש או אי-שימוש באפליקציה.
+- **החלטות רכישה**: המשתמש נושא באחריות מלאה להחלטות הרכישה שלו.
+- **תקלות טכניות**: לא נישא באחריות לתקלות, הפסקות שירות או אובדן מידע.
+
+### 8. פרטיות והגנת מידע
+- איסוף ושימוש במידע מפורטים במדיניות הפרטיות שלנו.
+- היסטוריית חיפושים נשמרת באופן מקומי במכשיר המשתמש בלבד.
+
+### 9. שינויים בתנאי השימוש
+- אנו שומרים לעצמנו את הזכות לשנות תנאים אלה בכל עת.
+- השימוש המתמשך באפליקציה לאחר שינוי מהווה הסכמה לתנאים המעודכנים.
+
+### 10. דין וסמכות שיפוט
+- תנאים אלה כפופים לדיני מדינת ישראל.
+- הסמכות הייחודית לדון בכל סכסוך תהיה לבתי המשפט המוסמכים בישראל.
+
+---
+
+## ENGLISH
+
+### 1. Acceptance of Terms
+By using the Price Comparison Application ("the App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the App.
+
+### 2. Description of Service
+The App provides a tool for comparing product prices across different stores. The service is provided "AS-IS" without any warranty or guarantee of accuracy, availability, or fitness for a particular purpose.
+
+### 3. Information Accuracy
+- **No Price Guarantee**: Prices displayed in the App are indicative only and may change at any time without prior notice.
+- **Price Updates**: Prices are updated periodically, but there is no guarantee they reflect current store prices.
+- **Product Availability**: There is no guarantee of product availability shown in the App.
+- **User Responsibility**: Users must verify final prices, product availability, and purchase terms directly with the selling store.
+
+### 4. Third-Party Links
+- The App contains affiliate links to external stores and websites.
+- We are not responsible for the content, privacy policies, or actions of these sites.
+- Use of external websites is subject to their terms of service.
+
+### 5. Affiliate Revenue
+- **Full Disclosure**: The App participates in affiliate programs including Amazon Associates, AliExpress, and others.
+- **Commissions**: We earn a commission when users purchase products through links in the App.
+- **No Additional Cost**: Commissions do not affect the price paid by the user.
+- **Independence**: Our recommendations are not influenced by commission amounts.
+
+### 6. Intellectual Property
+- All content, design, and code in the App are protected by copyright.
+- No copying, reproduction, or distribution of the App is permitted without written permission.
+- Store brand names and logos are the property of their original owners.
+
+### 7. Limitation of Liability
+- **Indirect Damages**: We shall not be liable for any direct, indirect, incidental, or consequential damages arising from use or inability to use the App.
+- **Purchase Decisions**: Users bear full responsibility for their purchase decisions.
+- **Technical Issues**: We are not liable for malfunctions, service interruptions, or data loss.
+
+---
+
+**© 2026 Price Comparison App. All rights reserved.**
+"""
+
+PRIVACY_POLICY = """
+# מדיניות פרטיות / Privacy Policy
+
+**תאריך עדכון אחרון: 15 ינואר 2026 / Last Updated: January 15, 2026**
+
+---
+
+## עברית
+
+### 1. מבוא
+מדיניות פרטיות זו מסבירה כיצד אפליקציית השוואת המחירים אוספת, משתמשת ומגינה על המידע שלך.
+
+### 2. מידע שאנו אוספים
+
+#### 2.1 מידע שנשמר מקומית בלבד
+- **היסטוריית חיפושים**: חיפושים שביצעת באפליקציה נשמרים **אך ורק במכשיר שלך**.
+- **העדפות משתמש**: בחירות שפה, מצב תצוגה, והגדרות נשמרות מקומית בלבד.
+- **אין שמירה בשרתים**: אנו **לא שומרים** את היסטוריית החיפושים בשרתים שלנו.
+
+#### 2.2 מידע שאנו לא אוספים
+- אנו **לא** אוספים מידע אישי מזהה (שם, כתובת, טלפון, אימייל).
+- אנו **לא** עוקבים אחר הרגלי הגלישה שלך מחוץ לאפליקציה.
+- אנו **לא** משתמשים ב-cookies למעקב.
+
+### 3. שימוש במידע
+
+#### 3.1 מטרות השימוש
+- **שיפור חוויית משתמש**: היסטוריית החיפושים מאפשרת גישה מהירה לחיפושים קודמים.
+- **תחזוקה טכנית**: מידע טכני אנונימי משמש לשיפור ביצועי האפליקציה.
+- **אין שימוש מסחרי**: אנו **לא** מוכרים מידע אישי לצדדים שלישיים.
+
+### 4. שיתוף מידע עם צדדים שלישיים
+
+#### 4.1 קישורי שותפות
+- כאשר אתה לוחץ על קישור לחנות חיצונית, **אתה עוזב את האפליקציה שלנו**.
+- החנות החיצונית עשויה לאסוף מידע בהתאם למדיניות הפרטיות שלה.
+- אנו **לא שולטים** במדיניות הפרטיות של אתרים חיצוניים.
+
+### 5. אבטחת מידע
+- **HTTPS**: כל התקשורת מוצפנת באמצעות HTTPS.
+- **אחסון מקומי**: היסטוריה שמורה רק במכשיר שלך.
+- **אין בסיס נתונים**: אין לנו בסיס נתונים שמכיל מידע אישי.
+
+### 6. זכויות המשתמש
+- **מחיקת מידע**: אתה יכול למחוק את היסטוריית החיפושים בכל עת.
+- **גישה למידע**: יש לך גישה מלאה למידע השמור מקומית במכשיר שלך.
+
+### 7. פרטיות ילדים
+- האפליקציה אינה מיועדת לילדים מתחת לגיל 13.
+- אנו לא אוספים מידע מילדים מתחת לגיל 13.
+
+---
+
+## ENGLISH
+
+### 1. Introduction
+This Privacy Policy explains how the Price Comparison Application collects, uses, and protects your information.
+
+### 2. Information We Collect
+
+#### 2.1 Information Stored Locally Only
+- **Search History**: Searches are saved **only on your device**.
+- **User Preferences**: Settings are stored locally only.
+- **No Server Storage**: We do **not** save your data on our servers.
+
+#### 2.2 Information We Do Not Collect
+- We do **not** collect personally identifiable information.
+- We do **not** track your browsing habits outside the App.
+- We do **not** use tracking cookies.
+
+### 3. Use of Information
+- **Improving User Experience**: Search history allows quick access to previous searches.
+- **Technical Maintenance**: Anonymous technical information improves App performance.
+- **No Commercial Use**: We do **not** sell personal information.
+
+### 4. Information Security
+- **HTTPS**: All communication is encrypted.
+- **Local Storage**: History stored only on your device.
+- **No User Database**: No database containing personal information.
+
+### 5. User Rights
+- **Data Deletion**: You can delete search history at any time.
+- **Access**: You have full access to locally stored information.
+
+---
+
+**© 2026 Price Comparison App. All rights reserved.**
+"""
+
+AFFILIATE_DISCLOSURE = """
+# גילוי שותפות והצהרת אחריות / Affiliate Disclosure & Disclaimer
+
+**תאריך עדכון אחרון: 15 ינואר 2026 / Last Updated: January 15, 2026**
+
+---
+
+## 📢 גילוי שותפות מלא / Full Affiliate Disclosure
+
+### עברית
+
+#### חשוב לדעת:
+אפליקציית השוואת המחירים משתתפת בתוכניות שותפות עם חנויות ומוכרים שונים. **זה אומר שאנו מרוויחים עמלה כאשר אתה רוכש מוצר דרך הקישורים שלנו.**
+
+#### 🔗 איך זה עובד?
+
+**1. תוכניות השותפות שלנו:**
+- **Amazon Associates** - תוכנית Amazon Services LLC Associates Program
+- **AliExpress Affiliate Program** - תוכנית השותפות של AliExpress
+- **תוכניות נוספות** - עשויות להתוסף חנויות נוספות
+
+**2. מה קורה כשאתה קונה:**
+- כאשר אתה לוחץ על קישור למוצר באפליקציה
+- ורוכש מוצר באותו אתר
+- אנו מקבלים עמלה קטנה מהחנות (בדרך כלל 1%-10%)
+
+**3. האם זה עולה לך כסף נוסף?**
+- **לא!** המחיר שאתה משלם זהה לחלוטין
+- העמלה משולמת על ידי החנות, לא על ידיך
+- אין עלויות נוספות או חיובים נסתרים
+
+#### 💡 השפעה על ההמלצות
+
+**אנו מתחייבים:**
+- ✅ להציג מידע אובייקטיבי ומדויק על המחירים
+- ✅ להשוות מחירים באופן הוגן בין כל החנויות
+- ✅ שההמלצות שלנו לא מושפעות מגובה העמלות
+- ✅ לציין בבירור כאשר קישור הוא קישור שותפות
+
+---
+
+## ⚠️ הצהרת אחריות / Disclaimer
+
+### 1. דיוק המחירים
+**חשוב מאוד:**
+- המחירים המוצגים הם **אינדיקטיביים בלבד**
+- המחירים עשויים להשתנות **בכל רגע**
+- **תמיד** בדוק את המחיר הסופי באתר החנות
+- אנו **לא אחראים** על הפרשי מחירים
+
+### 2. זמינות מוצרים
+- אין ערבות שהמוצר זמין למכירה
+- המלאי עשוי להיגמר בכל עת
+- **בדוק זמינות באתר החנות** לפני הרכישה
+
+### 3. עלויות משלוח ומיסים
+- המחירים **לא כוללים**:
+  - עלויות משלוח
+  - מסים (מע"ם, מכס)
+  - עמלות נוספות
+- העלות הסופית **עשויה להיות שונה**
+
+### 4. החלטות רכישה
+**אתה האחראי:**
+- ✋ אנו מספקים כלי להשוואה בלבד
+- ✋ אנו לא יועצים פיננסיים
+- ✋ כל החלטת רכישה היא באחריותך
+- ✋ השווה, חקור ובדוק לפני שאתה קונה
+
+---
+
+## ENGLISH
+
+### 📢 Full Affiliate Disclosure
+
+#### Important to Know:
+The Price Comparison Application participates in affiliate programs with various stores. **This means we earn a commission when you purchase through our links.**
+
+#### 🔗 How It Works
+
+**1. Our Affiliate Programs:**
+- **Amazon Associates**
+- **AliExpress Affiliate Program**
+- **Additional Programs**
+
+**2. What Happens When You Buy:**
+- When you click a product link in the App
+- And purchase on that site
+- We receive a small commission (typically 1%-10%)
+
+**3. Does It Cost You Extra?**
+- **No!** The price you pay is exactly the same
+- Commission is paid by the store, not by you
+- No additional costs or hidden charges
+
+#### 💡 Impact on Recommendations
+
+**We Commit To:**
+- ✅ Present objective price information
+- ✅ Compare prices fairly across all stores
+- ✅ Recommendations not influenced by commissions
+- ✅ Clearly indicate affiliate links
+
+---
+
+## ⚠️ Disclaimer
+
+### 1. Price Accuracy
+**Very Important:**
+- Prices are **indicative only**
+- Prices may change **at any moment**
+- **Always** verify final price on store website
+- We are **not responsible** for price differences
+
+### 2. Product Availability
+- No guarantee product is available
+- Inventory may run out
+- **Check availability on store website**
+
+### 3. Shipping and Taxes
+- Displayed prices **do not include**:
+  - Shipping costs
+  - Taxes (VAT, customs)
+  - Additional fees
+- Final cost **may be different**
+
+### 4. Purchase Decisions
+**You Are Responsible:**
+- ✋ We provide comparison tools only
+- ✋ We are not financial advisors
+- ✋ All purchase decisions are your responsibility
+- ✋ Compare, research, and verify before buying
+
+---
+
+**© 2026 Price Comparison App. All rights reserved.**
+"""
+
+# =====================================
 # פונקציות עזר
 # =====================================
 
-def load_legal_document(filename):
-    """טוען מסמך משפטי מקובץ markdown"""
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            return f.read()
-    except FileNotFoundError:
-        return f"⚠️ המסמך {filename} לא נמצא. אנא וודא שהקובץ קיים בתיקייה."
-    except Exception as e:
-        return f"⚠️ שגיאה בטעינת המסמך: {str(e)}"
-
 def show_legal_page(doc_type):
-    """מציג דף משפטי לפי סוג"""
+    """מציג דף משפטי"""
     docs = {
-        "terms": ("terms_of_service.md", "📋 תנאי שימוש / Terms of Service"),
-        "privacy": ("privacy_policy.md", "🔒 מדיניות פרטיות / Privacy Policy"),
-        "disclosure": ("affiliate_disclosure_disclaimer.md", "📢 גילוי שותפות והצהרת אחריות / Affiliate Disclosure & Disclaimer")
+        "terms": (TERMS_OF_SERVICE, "📋 תנאי שימוש / Terms of Service"),
+        "privacy": (PRIVACY_POLICY, "🔒 מדיניות פרטיות / Privacy Policy"),
+        "disclosure": (AFFILIATE_DISCLOSURE, "📢 גילוי שותפות / Affiliate Disclosure")
     }
     
     if doc_type in docs:
-        filename, title = docs[doc_type]
+        content, title = docs[doc_type]
         
         # כותרת
         st.title(title)
@@ -52,7 +368,6 @@ def show_legal_page(doc_type):
         st.markdown("---")
         
         # תוכן המסמך
-        content = load_legal_document(filename)
         st.markdown(content, unsafe_allow_html=True)
         
         # כפתור חזרה נוסף בתחתית
@@ -110,8 +425,6 @@ def show_affiliate_banner():
     
     **English:** Links in this app are affiliate links. We earn commissions from purchases through our links.
     Prices are the same for you, but commissions help us maintain the app for free.
-    
-    [📋 תנאים / Terms](#) | [🔒 פרטיות / Privacy](#) | [📢 גילוי מלא / Full Disclosure](#)
     """)
 
 # =====================================
@@ -122,12 +435,6 @@ if 'page' not in st.session_state:
 
 if 'search_history' not in st.session_state:
     st.session_state.search_history = []
-
-if 'language' not in st.session_state:
-    st.session_state.language = "he"  # he/en
-
-if 'dark_mode' not in st.session_state:
-    st.session_state.dark_mode = False
 
 # =====================================
 # CSS מותאם אישית
@@ -161,22 +468,9 @@ st.markdown("""
         border-radius: 8px !important;
     }
     
-    /* כרטיסים */
-    .stMetric {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-    }
-    
     /* הסתרת תפריט */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* באנרים */
-    .stAlert {
-        border-radius: 8px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -219,8 +513,8 @@ def main_app():
             )
         
         with col2:
-            st.write("")  # ריווח
-            st.write("")  # ריווח
+            st.write("")
+            st.write("")
             search_button = st.button("🔍 חפש / Search", use_container_width=True)
         
         if search_button and search_query:
@@ -232,11 +526,10 @@ def main_app():
             
             st.success(f"✅ מחפש: {search_query}")
             
-            # סימולציה של תוצאות
+            # תוצאות
             st.markdown("---")
             st.subheader("📦 תוצאות / Results")
             
-            # יצירת דוגמה לתוצאות
             stores = ["Amazon", "AliExpress", "eBay", "Best Buy", "Walmart"]
             results = []
             
@@ -253,13 +546,12 @@ def main_app():
             df = pd.DataFrame(results)
             st.dataframe(df, use_container_width=True, hide_index=True)
             
-            # כפתורי קישור (Affiliate Links)
+            # כפתורי קישור
             st.markdown("### 🛒 קישורים לרכישה / Purchase Links")
             cols = st.columns(len(stores))
             
             for idx, col in enumerate(cols):
                 with col:
-                    # קישור אמיתי לחנויות (כאן תשים את קישורי האפיליאט שלך)
                     if stores[idx] == "Amazon":
                         link = f"https://www.amazon.com/s?k={search_query.replace(' ', '+')}"
                     elif stores[idx] == "AliExpress":
@@ -277,10 +569,10 @@ def main_app():
                         use_container_width=True
                     )
         
-        # היסטוריית חיפושים
+        # היסטוריה
         if st.session_state.search_history:
             with st.expander("📜 היסטוריית חיפושים / Search History"):
-                for item in reversed(st.session_state.search_history[-10:]):  # 10 אחרונים
+                for item in reversed(st.session_state.search_history[-10:]):
                     st.text(f"🕐 {item['timestamp']} - {item['query']}")
     
     # ==================
@@ -301,7 +593,6 @@ def main_app():
             if product_name:
                 st.success(f"✅ משווה מחירים עבור: {product_name}")
                 
-                # יצירת נתונים להשוואה
                 stores_list = ["Amazon", "AliExpress", "eBay", "Best Buy", "Walmart", 
                               "Newegg", "Target", "B&H Photo", "Adorama", "Costco"][:num_stores]
                 
@@ -323,12 +614,11 @@ def main_app():
                 
                 df_compare = pd.DataFrame(comparison_data)
                 
-                # הדגשת העסקה הטובה ביותר
                 st.success("🏆 העסקה הטובה ביותר / Best Deal: " + stores_list[0])
                 
                 st.dataframe(df_compare, use_container_width=True, hide_index=True)
                 
-                # גרף השוואה
+                # גרף
                 try:
                     import plotly.express as px
                     
@@ -346,7 +636,7 @@ def main_app():
                     
                     st.plotly_chart(fig, use_container_width=True)
                 except:
-                    st.info("💡 התקן plotly לגרפים אינטראקטיביים: pip install plotly")
+                    st.info("💡 התקן plotly לגרפים: pip install plotly")
     
     # ==================
     # טאב 3: מחשבון תשלומים
@@ -366,7 +656,6 @@ def main_app():
             interest = st.number_input("ריבית שנתית / Annual Interest (%)", min_value=0.0, value=5.0, step=0.5)
         
         if st.button("💰 חשב / Calculate", use_container_width=True):
-            # חישוב תשלום חודשי
             monthly_interest = interest / 100 / 12
             
             if monthly_interest > 0:
@@ -378,7 +667,6 @@ def main_app():
             total_paid = monthly_payment * months
             total_interest = total_paid - price
             
-            # תצוגת תוצאות
             st.markdown("---")
             
             col1, col2, col3, col4 = st.columns(4)
@@ -394,29 +682,6 @@ def main_app():
             
             with col4:
                 st.metric("תוספת אחוזים / Percentage Added", f"{(total_interest/price)*100:.1f}%")
-            
-            # טבלת פירוט תשלומים
-            st.markdown("---")
-            st.subheader("📋 פירוט תשלומים / Payment Breakdown")
-            
-            payment_schedule = []
-            remaining = price
-            
-            for i in range(1, months + 1):
-                interest_payment = remaining * monthly_interest
-                principal_payment = monthly_payment - interest_payment
-                remaining -= principal_payment
-                
-                payment_schedule.append({
-                    "תשלום / Payment #": i,
-                    "תשלום חודשי / Monthly": f"${monthly_payment:.2f}",
-                    "קרן / Principal": f"${principal_payment:.2f}",
-                    "ריבית / Interest": f"${interest_payment:.2f}",
-                    "יתרה / Balance": f"${max(0, remaining):.2f}"
-                })
-            
-            df_payments = pd.DataFrame(payment_schedule)
-            st.dataframe(df_payments, use_container_width=True, hide_index=True)
     
     # ==================
     # טאב 4: השוואת מפרטים
@@ -446,7 +711,6 @@ def main_app():
                 products.append(product)
         
         if st.button("🔄 השווה / Compare", use_container_width=True):
-            # בניית טבלת השוואה
             comparison = {
                 "מאפיין / Feature": ["שם / Name", "מחיר / Price", "יצרן / Brand", "דגם / Model", "אחריות / Warranty"],
             }
@@ -463,7 +727,6 @@ def main_app():
             df_specs = pd.DataFrame(comparison)
             st.dataframe(df_specs, use_container_width=True, hide_index=True)
             
-            # המלצה
             valid_products = [p for p in products if p['name'] and p['price'] > 0]
             if valid_products:
                 best = min(valid_products, key=lambda x: x['price'])
@@ -475,7 +738,6 @@ def main_app():
     with tab5:
         st.subheader("🎫 קופונים והנחות")
         
-        # דוגמאות לקופונים
         coupons = [
             {
                 "store": "Amazon",
@@ -487,14 +749,14 @@ def main_app():
             {
                 "store": "AliExpress",
                 "code": "NEW15",
-                "discount": "15% הנחה למשתמשים חדשים / 15% Off for New Users",
+                "discount": "15% הנחה / 15% Off",
                 "expiry": "28/02/2026",
                 "link": "https://www.aliexpress.com"
             },
             {
                 "store": "eBay",
                 "code": "TECH10",
-                "discount": "$10 הנחה על מוצרי טכנולוגיה / $10 Off Tech Items",
+                "discount": "$10 הנחה / $10 Off",
                 "expiry": "15/02/2026",
                 "link": "https://www.ebay.com"
             }
